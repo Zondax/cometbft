@@ -105,6 +105,7 @@ type Config struct {
 	Storage         *StorageConfig         `mapstructure:"storage"`
 	TxIndex         *TxIndexConfig         `mapstructure:"tx_index"`
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
+	CryptoProvider  *CryptoProviderConfig  `mapstructure:"crypto_provider"`
 }
 
 // DefaultConfig returns a default configuration for a CometBFT node.
@@ -121,6 +122,7 @@ func DefaultConfig() *Config {
 		Storage:         DefaultStorageConfig(),
 		TxIndex:         DefaultTxIndexConfig(),
 		Instrumentation: DefaultInstrumentationConfig(),
+		CryptoProvider:  DefaultCryptoProviderConfig(),
 	}
 }
 
@@ -138,6 +140,7 @@ func TestConfig() *Config {
 		Storage:         TestStorageConfig(),
 		TxIndex:         TestTxIndexConfig(),
 		Instrumentation: TestInstrumentationConfig(),
+		CryptoProvider:  TestCryptoProviderConfig(),
 	}
 }
 
@@ -187,6 +190,12 @@ func (cfg *Config) ValidateBasic() error {
 	if !cfg.Consensus.CreateEmptyBlocks && cfg.Mempool.Type == MempoolTypeNop {
 		return errors.New("`nop` mempool does not support create_empty_blocks = false")
 	}
+	if cfg.UseCryptoProviderPV {
+		if err := cfg.CryptoProvider.ValidateBasic(); err != nil {
+			return fmt.Errorf("error in [crypto_provider] section: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -281,24 +290,29 @@ type BaseConfig struct {
 	// If true, query the ABCI app on connecting to a new peer
 	// so the app can decide if we should keep the connection or not
 	FilterPeers bool `mapstructure:"filter_peers"` // false
+
+	// If true, the node will use CryptoProviderPV as the privvalidator using the
+	// provided CryptoProvider config. This overrides the usage of the previous privvalidators
+	UseCryptoProviderPV bool `mapstructure:"use_new_crypto_provider_pv"` // false
 }
 
 // DefaultBaseConfig returns a default base configuration for a CometBFT node.
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		Version:            version.CMTSemVer,
-		Genesis:            defaultGenesisJSONPath,
-		PrivValidatorKey:   defaultPrivValKeyPath,
-		PrivValidatorState: defaultPrivValStatePath,
-		NodeKey:            defaultNodeKeyPath,
-		Moniker:            defaultMoniker,
-		ProxyApp:           "tcp://127.0.0.1:26658",
-		ABCI:               "socket",
-		LogLevel:           DefaultLogLevel,
-		LogFormat:          LogFormatPlain,
-		FilterPeers:        false,
-		DBBackend:          "goleveldb",
-		DBPath:             DefaultDataDir,
+		Version:             version.CMTSemVer,
+		Genesis:             defaultGenesisJSONPath,
+		PrivValidatorKey:    defaultPrivValKeyPath,
+		PrivValidatorState:  defaultPrivValStatePath,
+		NodeKey:             defaultNodeKeyPath,
+		Moniker:             defaultMoniker,
+		ProxyApp:            "tcp://127.0.0.1:26658",
+		ABCI:                "socket",
+		LogLevel:            DefaultLogLevel,
+		LogFormat:           LogFormatPlain,
+		FilterPeers:         false,
+		DBBackend:           "goleveldb",
+		DBPath:              DefaultDataDir,
+		UseCryptoProviderPV: false,
 	}
 }
 
@@ -515,7 +529,7 @@ func DefaultRPCConfig() *RPCConfig {
 		ListenAddress:      "tcp://127.0.0.1:26657",
 		CORSAllowedOrigins: []string{},
 		CORSAllowedMethods: []string{http.MethodHead, http.MethodGet, http.MethodPost},
-		CORSAllowedHeaders: []string{"Origin", "Accept", "Content-Type", "X-Requested-With", "X-Server-Time"},
+		CORSAllowedHeaders: []string{"Origin", "Accept", "Content-Name", "X-Requested-With", "X-Server-Time"},
 
 		Unsafe:             false,
 		MaxOpenConnections: 900,
@@ -767,7 +781,7 @@ type P2PConfig struct { //nolint: maligned
 	ExternalAddress string `mapstructure:"external_address"`
 
 	// Comma separated list of seed nodes to connect to
-	// We only use these if we can’t connect to peers in the addrbook
+	// We only use these if we can't connect to peers in the addrbook
 	Seeds string `mapstructure:"seeds"`
 
 	// Comma separated list of nodes to keep persistent connections to
@@ -1614,5 +1628,40 @@ func (cfg *DataCompanionPruningConfig) ValidateBasic() error {
 	if cfg.InitialBlockResultsRetainHeight < 0 {
 		return errors.New("initial_block_results_retain_height cannot be negative")
 	}
+	return nil
+}
+
+// CryptoProviderConfig defines the configuration for the crypto provider.
+type CryptoProviderConfig struct {
+	Enabled          bool   `mapstructure:"enabled"`
+	ProviderFilePath string `mapstructure:"provider_file_path"`
+}
+
+// DefaultCryptoProviderConfig returns a default configuration for the crypto provider.
+func DefaultCryptoProviderConfig() *CryptoProviderConfig {
+	return &CryptoProviderConfig{
+		Enabled:          false,
+		ProviderFilePath: "",
+	}
+}
+
+// TestCryptoProviderConfig returns a configuration for testing the crypto provider.
+func TestCryptoProviderConfig() *CryptoProviderConfig {
+	return &CryptoProviderConfig{
+		Enabled:          true,
+		ProviderFilePath: "test/test_provider.json", // TODO create a test provider file
+	}
+}
+
+// ValidateBasic performs basic validation.
+func (cfg *CryptoProviderConfig) ValidateBasic() error {
+	if !cfg.Enabled {
+		return nil
+	}
+
+	if cfg.ProviderFilePath == "" {
+		return errors.New("provider file path cannot be empty")
+	}
+
 	return nil
 }

@@ -378,7 +378,7 @@ func NewNodeWithCliParams(ctx context.Context,
 
 	// If an address is provided, listen on the socket for a connection from an
 	// external signing process.
-	if config.PrivValidatorListenAddr != "" {
+	if !config.CryptoProvider.Enabled && config.PrivValidatorListenAddr != "" {
 		// FIXME: we should start services inside OnStart
 		privValidator, err = createAndStartPrivValidatorSocketClient(config.PrivValidatorListenAddr, genDoc.ChainID, logger)
 		if err != nil {

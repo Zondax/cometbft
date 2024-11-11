@@ -276,3 +276,12 @@ func TestStateSyncPossibleMisconfigurations(t *testing.T) {
 	cfg.Enable = true
 	require.Len(t, cfg.PossibleMisconfigurations(), 0)
 }
+
+func TestCryptoProviderConfigValidateBasic(t *testing.T) {
+	cfg := config.TestCryptoProviderConfig()
+	require.NoError(t, cfg.ValidateBasic())
+
+	// Test with invalid provider type
+	cfg.ProviderFilePath = ""
+	require.Error(t, cfg.ValidateBasic())
+}

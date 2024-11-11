@@ -158,7 +158,7 @@ func (lss *FilePVLastSignState) Save() {
 
 // FilePV implements PrivValidator using data persisted to disk
 // to prevent double signing.
-// NOTE: the directories containing pv.Key.filePath and pv.LastSignState.filePath must already exist.
+// NOTE: the directories containing pv.Key.filePath and pv.lastSignState.filePath must already exist.
 // It includes the LastSignature and LastSignBytes so we don't lose the signature
 // if the process crashes after signing but before the resulting consensus message is processed.
 type FilePV struct {
@@ -203,13 +203,13 @@ func LoadFilePV(keyFilePath, stateFilePath string) *FilePV {
 	return loadFilePV(keyFilePath, stateFilePath, true)
 }
 
-// LoadFilePVEmptyState loads a FilePV from the given keyFilePath, with an empty LastSignState.
+// LoadFilePVEmptyState loads a FilePV from the given keyFilePath, with an empty lastSignState.
 // If the keyFilePath does not exist, the program will exit.
 func LoadFilePVEmptyState(keyFilePath, stateFilePath string) *FilePV {
 	return loadFilePV(keyFilePath, stateFilePath, false)
 }
 
-// If loadState is true, we load from the stateFilePath. Otherwise, we use an empty LastSignState.
+// If loadState is true, we load from the stateFilePath. Otherwise, we use an empty lastSignState.
 func loadFilePV(keyFilePath, stateFilePath string, loadState bool) *FilePV {
 	keyJSONBytes, err := os.ReadFile(keyFilePath)
 	if err != nil {

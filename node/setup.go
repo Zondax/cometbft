@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/cometbft/cometbft/privval/provider"
 	"net"
 	"os"
 	"strings"
@@ -103,16 +104,24 @@ func DefaultNewNode(
 		return nil, ErrorLoadOrGenNodeKey{Err: err, NodeKeyFile: config.NodeKeyFile()}
 	}
 
-	pv, err := privval.LoadOrGenFilePV(
-		config.PrivValidatorKeyFile(),
-		config.PrivValidatorStateFile(),
-		keyGenF,
-	)
-	if err != nil {
-		return nil, ErrorLoadOrGenFilePV{
-			Err:       err,
-			KeyFile:   config.PrivValidatorKeyFile(),
-			StateFile: config.PrivValidatorStateFile(),
+	var pv types.PrivValidator
+	if config.CryptoProvider.Enabled {
+		pv, err = provider.NewCryptoProviderPV(config.CryptoProvider)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create CryptoProvider priv validator: %w", err)
+		}
+	} else {
+		pv, err = privval.LoadOrGenFilePV(
+			config.PrivValidatorKeyFile(),
+			config.PrivValidatorStateFile(),
+			keyGenF,
+		)
+		if err != nil {
+			return nil, ErrorLoadOrGenFilePV{
+				Err:       err,
+				KeyFile:   config.PrivValidatorKeyFile(),
+				StateFile: config.PrivValidatorStateFile(),
+			}
 		}
 	}
 
