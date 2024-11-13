@@ -1,10 +1,13 @@
 package file
 
 import (
+	"bytes"
 	"encoding/json"
+	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	config2 "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -119,4 +122,37 @@ func TestLoadFileCryptoProvider(t *testing.T) {
 	// Verify the file paths were properly set
 	require.Equal(t, ctx.config.KeyFilePath, loadedProvider.keys.filePath)
 	require.Equal(t, ctx.config.StateFilePath, loadedProvider.lastSignState.filePath)
+}
+
+func TestSignVote(t *testing.T) {
+	ctx := setupTestContext(t)
+	defer ctx.cleanup()
+
+	// Create new provider
+	provider, err := NewFileCryptoProvider(ctx.config)
+	require.NoError(t, err)
+	require.NotNil(t, provider)
+
+	// Create a test vote
+	vote := &cmtproto.Vote{
+		Type:      cmtproto.PrevoteType,
+		Height:    1,
+		Round:     0,
+		Timestamp: time.Now(),
+		BlockID: cmtproto.BlockID{
+			Hash: bytes.Repeat([]byte{1}, 32),
+			PartSetHeader: cmtproto.PartSetHeader{
+				Total: 1,
+				Hash:  bytes.Repeat([]byte{2}, 32),
+			},
+		},
+		ValidatorAddress: provider.GetAddress(),
+		ValidatorIndex:   0,
+	}
+
+	// Test signing the vote
+	chainID := "test-chain"
+	err = provider.signVote(chainID, vote, false)
+	require.NoError(t, err)
+	require.NotEmpty(t, vote.Signature, "Vote signature should not be empty")
 }

@@ -3,14 +3,15 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/cometbft/cometbft/config"
 	cp "github.com/cosmos/crypto-provider/pkg/components"
-	"os"
 )
 
 type CryptoProviderConfig struct {
 	ProviderType string
-	BuildSource  cp.BuildSourceMetadata
+	BuildSource  cp.BuildSourceJson
 }
 
 // ConvertConfig converts config.CryptoProviderConfig to CryptoProviderConfig
@@ -26,12 +27,14 @@ func ConvertConfig(config *config.CryptoProviderConfig) (*CryptoProviderConfig, 
 		return nil, fmt.Errorf("failed to unmarshal config file: %w", err)
 	}
 
-	if meta.Validate() != nil {
+	if err := meta.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid metadata in config file: %w", err)
 	}
 
 	return &CryptoProviderConfig{
 		ProviderType: meta.Type,
-		BuildSource:  cp.BuildSourceMetadata{Metadata: meta},
+		BuildSource: cp.BuildSourceJson{
+			JsonString: string(cfgFile),
+		},
 	}, nil
 }

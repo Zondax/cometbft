@@ -66,7 +66,7 @@ func TestFactory_Create_FromJSON(t *testing.T) {
 		Type:      ProviderTypeFile,
 		Version:   Version,
 		Name:      providerName,
-		PublicKey: keys.PubKey.key.String(),
+		PublicKey: keys.PubKey.String(),
 		Config: map[string]any{
 			"key_file_path":   keys.filePath,
 			"state_file_path": state.filePath,
@@ -89,7 +89,7 @@ func TestFactory_Create_FromJSON(t *testing.T) {
 	assert.Equal(t, Version, newMeta.Version)
 	assert.Equal(t, providerName, newMeta.Name)
 	assert.Equal(t, ProviderTypeFile, newMeta.Type)
-	assert.Equal(t, keys.PubKey.key.String(), newMeta.PublicKey)
+	assert.Equal(t, keys.PubKey.String(), newMeta.PublicKey)
 }
 
 func TestFactory_Create_InvalidSource(t *testing.T) {

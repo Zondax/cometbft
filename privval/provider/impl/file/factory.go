@@ -23,7 +23,7 @@ func init() {
 	f := cpfactory.GetGlobalFactory()
 	err := f.RegisterFactory(&Factory{
 		BaseFactory: cp.BaseFactory{
-			BaseDir: config2.DefaultBaseConfig().RootDir,
+			BaseDir: config2.DefaultConfig().RootDir,
 		},
 	})
 	if err != nil {

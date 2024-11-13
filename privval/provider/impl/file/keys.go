@@ -2,8 +2,6 @@ package file
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,15 +20,15 @@ type Keys struct {
 	PubKey  *Ed25519PubKey  `json:"pub_key"`
 	PrivKey *Ed25519PrivKey `json:"priv_key"`
 
-	filePath string
+	filePath string `json:"-"`
 }
 
 func NewKeys(filePath string) *Keys {
-	privKey := GenEd25519PrivKey()
+	privKey := ed25519.GenPrivKey()
 	keys := &Keys{
-		Address:  privKey.PubKey().(*Ed25519PubKey).Address(),
-		PubKey:   privKey.PubKey().(*Ed25519PubKey),
-		PrivKey:  privKey,
+		Address:  privKey.PubKey().Address(),
+		PubKey:   &Ed25519PubKey{key: privKey.PubKey().(ed25519.PubKey)},
+		PrivKey:  &Ed25519PrivKey{key: privKey},
 		filePath: filePath,
 	}
 
@@ -78,8 +76,6 @@ var (
 	_ cp.PrivKey[cp.PubKey] = (*Ed25519PrivKey)(nil)
 )
 
-// Public Key Implementation
-
 func NewEd25519PubKey(key ed25519.PubKey) *Ed25519PubKey {
 	return &Ed25519PubKey{key: key}
 }
@@ -89,7 +85,7 @@ func (pk *Ed25519PubKey) Bytes() []byte {
 }
 
 func (pk *Ed25519PubKey) Type() string {
-	return "ed25519"
+	return ed25519.KeyType
 }
 
 func (pk *Ed25519PubKey) Equals(other cp.PubKey) bool {
@@ -103,29 +99,42 @@ func (pk *Ed25519PubKey) Address() []byte {
 	return pk.key.Address()
 }
 
-func (pk *Ed25519PubKey) VerifySignature(msg []byte, sig cp.Signature) bool {
-	return pk.key.VerifySignature(msg, sig.Bytes())
+func (pk *Ed25519PubKey) String() string {
+	return fmt.Sprintf("%X", pk.key.Bytes())
 }
 
-// MarshalJSON implements the json.Marshaler interface
-func (pk Ed25519PubKey) MarshalJSON() ([]byte, error) {
+// MarshalJSON implements the json.Marshaler interface for Ed25519PubKey
+func (pk *Ed25519PubKey) MarshalJSON() ([]byte, error) {
 	if pk.key == nil {
 		return []byte("null"), nil
 	}
-	return json.Marshal(pk.key.Bytes())
+
+	return json.Marshal(struct {
+		Type  string `json:"type"`
+		Value []byte `json:"value"`
+	}{
+		Type:  ed25519.PubKeyName,
+		Value: pk.key.Bytes(),
+	})
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface
+// UnmarshalJSON implements the json.Unmarshaler interface for Ed25519PubKey
 func (pk *Ed25519PubKey) UnmarshalJSON(data []byte) error {
-	if len(data) == 0 || string(data) == "null" {
-		pk.key = nil
-		return nil
+	var aux struct {
+		Type  string `json:"type"`
+		Value []byte `json:"value"`
 	}
-	var keyBytes []byte
-	if err := json.Unmarshal(data, &keyBytes); err != nil {
+
+	err := json.Unmarshal(data, &aux)
+	if err != nil {
 		return err
 	}
-	pk.key = ed25519.PubKey(keyBytes)
+
+	if aux.Type != ed25519.PubKeyName {
+		return fmt.Errorf("wrong key type %s", aux.Type)
+	}
+
+	pk.key = aux.Value
 	return nil
 }
 
@@ -140,18 +149,12 @@ func GenEd25519PrivKey() *Ed25519PrivKey {
 	return NewEd25519PrivKey(privKey)
 }
 
-func GenEd25519PrivKeyFromSecret(secret []byte) (*Ed25519PrivKey, error) {
-	seed := sha256.Sum256(secret)
-	privKey := ed25519.GenPrivKeyFromSecret(seed[:])
-	return NewEd25519PrivKey(privKey), nil
-}
-
 func (pk *Ed25519PrivKey) Bytes() []byte {
 	return pk.key.Bytes()
 }
 
 func (pk *Ed25519PrivKey) Type() string {
-	return "ed25519"
+	return ed25519.KeyType
 }
 
 func (pk *Ed25519PrivKey) Equals(other cp.PrivKey[cp.PubKey]) bool {
@@ -166,56 +169,37 @@ func (pk *Ed25519PrivKey) PubKey() cp.PubKey {
 	return NewEd25519PubKey(pubKey)
 }
 
-// MarshalJSON implements the json.Marshaler interface
-func (pk Ed25519PrivKey) MarshalJSON() ([]byte, error) {
+// MarshalJSON implements the json.Marshaler interface for Ed25519PrivKey
+func (pk *Ed25519PrivKey) MarshalJSON() ([]byte, error) {
 	if pk.key == nil {
 		return []byte("null"), nil
 	}
-	return json.Marshal(pk.key.Bytes())
+
+	return json.Marshal(struct {
+		Type  string `json:"type"`
+		Value []byte `json:"value"`
+	}{
+		Type:  ed25519.PrivKeyName,
+		Value: pk.key.Bytes(),
+	})
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface
+// UnmarshalJSON implements the json.Unmarshaler interface for Ed25519PrivKey
 func (pk *Ed25519PrivKey) UnmarshalJSON(data []byte) error {
-	if len(data) == 0 || string(data) == "null" {
-		pk.key = nil
-		return nil
+	var aux struct {
+		Type  string `json:"type"`
+		Value []byte `json:"value"`
 	}
-	var keyBytes []byte
-	if err := json.Unmarshal(data, &keyBytes); err != nil {
+
+	err := json.Unmarshal(data, &aux)
+	if err != nil {
 		return err
 	}
-	pk.key = ed25519.PrivKey(keyBytes)
+
+	if aux.Type != ed25519.PrivKeyName {
+		return fmt.Errorf("wrong key type %s", aux.Type)
+	}
+
+	pk.key = aux.Value
 	return nil
-}
-
-// Helper functions for key conversion
-
-func PubKeyFromBytes(bz []byte) (*Ed25519PubKey, error) {
-	if len(bz) != ed25519.PubKeySize {
-		return nil, fmt.Errorf("invalid pubkey size: got %d, want %d", len(bz), ed25519.PubKeySize)
-	}
-	return NewEd25519PubKey(ed25519.PubKey(bz)), nil
-}
-
-func PubKeyFromHex(hexStr string) (*Ed25519PubKey, error) {
-	bz, err := hex.DecodeString(hexStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode hex: %w", err)
-	}
-	return PubKeyFromBytes(bz)
-}
-
-func PrivKeyFromBytes(bz []byte) (*Ed25519PrivKey, error) {
-	if len(bz) != ed25519.PrivateKeySize {
-		return nil, fmt.Errorf("invalid privkey size: got %d, want %d", len(bz), ed25519.PrivateKeySize)
-	}
-	return NewEd25519PrivKey(ed25519.PrivKey(bz)), nil
-}
-
-func PrivKeyFromHex(hexStr string) (*Ed25519PrivKey, error) {
-	bz, err := hex.DecodeString(hexStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode hex: %w", err)
-	}
-	return PrivKeyFromBytes(bz)
 }

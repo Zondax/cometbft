@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cometbft/cometbft/privval"
 	"os"
 	"path/filepath"
 	"time"
@@ -15,7 +16,6 @@ import (
 	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/libs/protoio"
-	"github.com/cometbft/cometbft/privval/provider"
 	"github.com/cometbft/cometbft/types"
 	cmttime "github.com/cometbft/cometbft/types/time"
 )
@@ -24,7 +24,7 @@ import (
 var _ cp.CryptoProvider = &CryptoProviderFile{}
 
 const (
-	ProviderTypeFile = "file"
+	ProviderTypeFile = "filepv"
 	Version          = "v1.0.0"
 )
 
@@ -108,7 +108,7 @@ func NewFileCryptoProvider(config FileProviderConfig) (*CryptoProviderFile, erro
 	}
 
 	// Update public key in metadata
-	config.Metadata.PublicKey = p.keys.PubKey.key.String()
+	config.Metadata.PublicKey = p.keys.PubKey.String()
 
 	// Save initial state
 	p.Save()
@@ -175,19 +175,19 @@ func (pv *CryptoProviderFile) GetSigner() cp.Signer {
 }
 
 func (pv *CryptoProviderFile) Sign(signDoc []byte, options cp.SignerOpts) (cp.Signature, error) {
-	signOp, ok := options[provider.SignOpKey].(string)
+	signOp, ok := options[privval.SignOpKey].(string)
 	if !ok {
 		return nil, errors.New("missing sign operation")
 	}
 
-	chainId, ok := options[provider.ChainIdKey].(string)
+	chainId, ok := options[privval.ChainIdKey].(string)
 	if !ok {
 		return nil, errors.New("missing chain ID")
 	}
 
 	switch signOp {
-	case provider.SignOpVote:
-		vote, ok := options[provider.VoteKey].(*cmtproto.Vote)
+	case privval.SignOpVote:
+		vote, ok := options[privval.VoteKey].(*cmtproto.Vote)
 		if !ok {
 			return nil, errors.New("bad vote data")
 		}
@@ -322,23 +322,25 @@ func (pv *CryptoProviderFile) signVote(chainID string, vote *cmtproto.Vote, sign
 		// re-sign the vote extensions of precommits. For prevotes and nil
 		// precommits, the extension signature will always be empty.
 		// Even if the signed over data is empty, we still add the signature
-		var extSig cp.Signature
+		var extSig ByteSignature
 		if vote.Type == types.PrecommitType && !types.ProtoBlockIDIsNil(&vote.BlockID) {
 			extSignBytes := types.VoteExtensionSignBytes(chainID, vote)
-			extSig, err = pv.GetSigner().Sign(extSignBytes, nil)
+			sig, err := pv.keys.PrivKey.key.Sign(extSignBytes)
 			if err != nil {
 				return err
 			}
 
-			if extSig == nil {
+			if sig == nil {
 				return errors.New("unexpected nil vote extension signature")
 			}
+
+			extSig = sig
 
 		} else if len(vote.Extension) > 0 {
 			return errors.New("unexpected vote extension - extensions are only allowed in non-nil precommits")
 		}
 
-		vote.ExtensionSignature = extSig.Bytes()
+		vote.ExtensionSignature = extSig
 	}
 
 	// We might crash before writing to the wal,
@@ -362,12 +364,12 @@ func (pv *CryptoProviderFile) signVote(chainID string, vote *cmtproto.Vote, sign
 	}
 
 	// It passed the checks. Sign the vote
-	sig, err := pv.GetSigner().Sign(signBytes, nil)
+	sign, err := pv.keys.PrivKey.key.Sign(signBytes)
 	if err != nil {
 		return err
 	}
-	pv.saveSigned(height, round, step, signBytes, sig.Bytes())
-	vote.Signature = sig.Bytes()
+	pv.saveSigned(height, round, step, signBytes, sign)
+	vote.Signature = sign
 
 	return nil
 }
@@ -405,12 +407,12 @@ func (pv *CryptoProviderFile) signProposal(chainID string, proposal *cmtproto.Pr
 	}
 
 	// It passed the checks. Sign the proposal
-	sig, err := pv.GetSigner().Sign(signBytes, nil)
+	sig, err := pv.keys.PrivKey.key.Sign(signBytes)
 	if err != nil {
 		return err
 	}
-	pv.saveSigned(height, round, step, signBytes, sig.Bytes())
-	proposal.Signature = sig.Bytes()
+	pv.saveSigned(height, round, step, signBytes, sig)
+	proposal.Signature = sig
 	return nil
 }
 

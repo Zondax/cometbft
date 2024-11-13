@@ -190,10 +190,9 @@ func (cfg *Config) ValidateBasic() error {
 	if !cfg.Consensus.CreateEmptyBlocks && cfg.Mempool.Type == MempoolTypeNop {
 		return errors.New("`nop` mempool does not support create_empty_blocks = false")
 	}
-	if cfg.UseCryptoProviderPV {
-		if err := cfg.CryptoProvider.ValidateBasic(); err != nil {
-			return fmt.Errorf("error in [crypto_provider] section: %w", err)
-		}
+
+	if err := cfg.CryptoProvider.ValidateBasic(); err != nil {
+		return fmt.Errorf("error in [crypto_provider] section: %w", err)
 	}
 
 	return nil
@@ -290,29 +289,24 @@ type BaseConfig struct {
 	// If true, query the ABCI app on connecting to a new peer
 	// so the app can decide if we should keep the connection or not
 	FilterPeers bool `mapstructure:"filter_peers"` // false
-
-	// If true, the node will use CryptoProviderPV as the privvalidator using the
-	// provided CryptoProvider config. This overrides the usage of the previous privvalidators
-	UseCryptoProviderPV bool `mapstructure:"use_new_crypto_provider_pv"` // false
 }
 
 // DefaultBaseConfig returns a default base configuration for a CometBFT node.
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		Version:             version.CMTSemVer,
-		Genesis:             defaultGenesisJSONPath,
-		PrivValidatorKey:    defaultPrivValKeyPath,
-		PrivValidatorState:  defaultPrivValStatePath,
-		NodeKey:             defaultNodeKeyPath,
-		Moniker:             defaultMoniker,
-		ProxyApp:            "tcp://127.0.0.1:26658",
-		ABCI:                "socket",
-		LogLevel:            DefaultLogLevel,
-		LogFormat:           LogFormatPlain,
-		FilterPeers:         false,
-		DBBackend:           "goleveldb",
-		DBPath:              DefaultDataDir,
-		UseCryptoProviderPV: false,
+		Version:            version.CMTSemVer,
+		Genesis:            defaultGenesisJSONPath,
+		PrivValidatorKey:   defaultPrivValKeyPath,
+		PrivValidatorState: defaultPrivValStatePath,
+		NodeKey:            defaultNodeKeyPath,
+		Moniker:            defaultMoniker,
+		ProxyApp:           "tcp://127.0.0.1:26658",
+		ABCI:               "socket",
+		LogLevel:           DefaultLogLevel,
+		LogFormat:          LogFormatPlain,
+		FilterPeers:        false,
+		DBBackend:          "goleveldb",
+		DBPath:             DefaultDataDir,
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/privval"
 
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cosmos/crypto-provider/pkg/factory"
@@ -14,19 +15,7 @@ import (
 	cp "github.com/cosmos/crypto-provider/pkg/components"
 
 	// Add all provider packages here
-	_ "github.com/cosmos/crypto-provider/pkg/provider/file"
-)
-
-const (
-	SignOpKey        = "signOp"
-	ChainIdKey       = "chainID"
-	VoteKey          = "vote"
-	SignExtensionKey = "signExtension"
-	ProposalKey      = "proposal"
-
-	SignOpVote  = "vote"
-	SignOpProp  = "proposal"
-	SignOpBytes = "bytes"
+	_ "github.com/cometbft/cometbft/privval/provider/impl/file"
 )
 
 // CryptoProviderPV implements PrivValidator interface
@@ -76,10 +65,10 @@ func (pv *CryptoProviderPV) SignVote(chainID string, vote *cmtproto.Vote, signEx
 
 	// The underlying signer needs these parameters so we pass them through SignerOpts
 	options := cp.SignerOpts{
-		SignOpKey:        SignOpVote,
-		ChainIdKey:       chainID,
-		VoteKey:          vote,
-		SignExtensionKey: signExtension,
+		privval.SignOpKey:        privval.SignOpVote,
+		privval.ChainIdKey:       chainID,
+		privval.VoteKey:          vote,
+		privval.SignExtensionKey: signExtension,
 	}
 
 	sig, err := signer.Sign(voteBytes, options)
@@ -87,7 +76,6 @@ func (pv *CryptoProviderPV) SignVote(chainID string, vote *cmtproto.Vote, signEx
 		return err
 	}
 	vote.Signature = sig.Bytes()
-
 	return nil
 }
 
@@ -100,9 +88,9 @@ func (pv *CryptoProviderPV) SignProposal(chainID string, proposal *cmtproto.Prop
 
 	// The underlying signer needs these parameters so we pass them through SignerOpts
 	options := cp.SignerOpts{
-		SignOpKey:   SignOpProp,
-		ChainIdKey:  chainID,
-		ProposalKey: proposal,
+		privval.SignOpKey:   privval.SignOpProp,
+		privval.ChainIdKey:  chainID,
+		privval.ProposalKey: proposal,
 	}
 
 	sig, err := signer.Sign(proposalBytes, options)
@@ -117,7 +105,7 @@ func (pv *CryptoProviderPV) SignProposal(chainID string, proposal *cmtproto.Prop
 func (pv *CryptoProviderPV) SignBytes(bytes []byte) ([]byte, error) {
 	signer := pv.provider.GetSigner()
 	options := cp.SignerOpts{
-		SignOpKey: SignOpBytes,
+		privval.SignOpKey: privval.SignOpBytes,
 	}
 
 	sig, err := signer.Sign(bytes, options)
