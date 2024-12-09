@@ -33,7 +33,7 @@ func NewCryptoProviderPV(config *config.CryptoProviderConfig) (*CryptoProviderPV
 		return nil, nil // TODO return err?
 	}
 
-	cpConfig, err := ConvertConfig(config)
+	cpConfig, err := LoadConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert config: %w", err)
 	}
@@ -166,8 +166,7 @@ type SignatureAdapter struct {
 }
 
 func (s *SignatureAdapter) Equals(other cp.Signature) bool {
-	//TODO implement me
-	panic("implement me")
+	return bytes.Equal(s.sigBytes, other.Bytes())
 }
 
 func (s *SignatureAdapter) Bytes() []byte {

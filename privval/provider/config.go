@@ -14,8 +14,8 @@ type CryptoProviderConfig struct {
 	BuildSource  cp.BuildSourceJson
 }
 
-// ConvertConfig converts config.CryptoProviderConfig to CryptoProviderConfig
-func ConvertConfig(config *config.CryptoProviderConfig) (*CryptoProviderConfig, error) {
+// LoadConfig loads the provider metadata from the config file
+func LoadConfig(config *config.CryptoProviderConfig) (*CryptoProviderConfig, error) {
 	cfgFile, err := os.ReadFile(config.ProviderFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
@@ -33,7 +33,7 @@ func ConvertConfig(config *config.CryptoProviderConfig) (*CryptoProviderConfig, 
 
 	return &CryptoProviderConfig{
 		ProviderType: meta.Type,
-		BuildSource: cp.BuildSourceJson{
+		BuildSource: cp.BuildSourceJson{ // TODO: could just create BuildSourceMetadata
 			JsonString: string(cfgFile),
 		},
 	}, nil

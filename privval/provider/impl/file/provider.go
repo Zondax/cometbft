@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cometbft/cometbft/privval"
 	"os"
 	"path/filepath"
 	"time"
@@ -16,6 +15,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/api/cometbft/types/v1"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/libs/protoio"
+	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/types"
 	cmttime "github.com/cometbft/cometbft/types/time"
 )
@@ -58,7 +58,7 @@ type CryptoProviderFile struct {
 	config        FileProviderConfig
 }
 
-// LoadFileCryptoProvider creates a new File Crypto Provider
+// LoadFileCryptoProvider loads a File crypto provider from config
 func LoadFileCryptoProvider(config FileProviderConfig) (*CryptoProviderFile, error) {
 	// Validate required fields
 	if err := config.Validate(); err != nil {

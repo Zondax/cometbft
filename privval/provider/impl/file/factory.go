@@ -23,7 +23,7 @@ func init() {
 	f := cpfactory.GetGlobalFactory()
 	err := f.RegisterFactory(&Factory{
 		BaseFactory: cp.BaseFactory{
-			BaseDir: config2.DefaultConfig().RootDir,
+			BaseDir: config2.DefaultConfig().RootDir, // TODO: fix this to use the correct base dir
 		},
 	})
 	if err != nil {
@@ -35,7 +35,7 @@ func init() {
 func (f *Factory) Create(source cp.BuildSource) (cp.CryptoProvider, error) {
 	// Validate first the build source
 	if source == nil {
-		return nil, fmt.Errorf("source is nil")
+		return nil, fmt.Errorf("[FileFactory] source is nil")
 	}
 	if err := source.Validate(); err != nil {
 		return nil, fmt.Errorf("build source contains invalid data. Check Validate() method: %w", err)
